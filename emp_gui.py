@@ -87,6 +87,15 @@ class EMPApp:
             self.friend_cryptos[friend_code] = EMPCrypto(shared_key)
         return self.friend_cryptos[friend_code]
 
+    def connect_to_seed(self):
+        ip = self.seed_entry.get().strip()
+        if ip and ip != "IP d'un ami":
+            if self.network.connect_to_peer(ip):
+                messagebox.showinfo("Mesh Global", f"Connecté au nœud {ip}. Recherche d'autres pairs en cours...")
+                self.seed_entry.delete(0, tk.END)
+            else:
+                messagebox.showerror("Mesh Global", f"Impossible de rejoindre {ip}. Vérifiez l'IP ou le port (42424).")
+
     def show_main_chat(self):
         self.clear_screen()
         sidebar = tk.Frame(self.root, bg="#252526", width=300)
@@ -96,6 +105,19 @@ class EMPApp:
         tk.Label(sidebar, text="VOTRE CODE :", font=("Segoe UI", 8, "bold"), bg="#252526", fg="gray").pack(pady=(5, 0))
         tk.Label(sidebar, text=self.storage.data["my_friend_code"], font=("Consolas", 10), bg="#333333", fg="#00FF00").pack(pady=5, padx=10, fill="x")
         
+        # Affichage de l'IP publique pour le Mesh Global
+        tk.Label(sidebar, text="VOTRE IP MESH :", font=("Segoe UI", 8, "bold"), bg="#252526", fg="gray").pack(pady=(5, 0))
+        self.ip_label = tk.Label(sidebar, text=self.network.public_ip, font=("Consolas", 9), bg="#333333", fg="#00BFFF")
+        self.ip_label.pack(pady=2, padx=10, fill="x")
+        
+        # Bouton pour rejoindre un nœud mondial (Seed)
+        seed_frame = tk.Frame(sidebar, bg="#252526")
+        seed_frame.pack(fill="x", pady=10)
+        self.seed_entry = ttk.Entry(seed_frame, font=("Segoe UI", 9))
+        self.seed_entry.insert(0, "IP d'un ami")
+        self.seed_entry.pack(side="left", padx=5, fill="x", expand=True)
+        ttk.Button(seed_frame, text="RELIE", command=self.connect_to_seed).pack(side="right", padx=5)
+
         self.tab_control = ttk.Notebook(sidebar)
         self.friends_tab = ttk.Frame(self.tab_control)
         self.requests_tab = ttk.Frame(self.tab_control)

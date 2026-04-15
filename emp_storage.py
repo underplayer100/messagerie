@@ -30,29 +30,59 @@ class EMPStorage:
 
     def load_local_data(self):
         if os.path.exists(self.local_data_file):
+            if os.path.getsize(self.local_data_file) == 0:
+                print("Fichier de stockage vide.")
+                return
+                
             try:
                 with open(self.local_data_file, "rb") as f:
-                    encrypted_data = f.read()
-                    decrypted_str = self.crypto.decrypt(encrypted_data)
+                    encrypted_data_bytes = f.read()
+                    
+                    if not encrypted_data_bytes:
+                        return
+                        
+                    # Le Vortex Cipher renvoie une string base64, on la lit en utf-8
+                    try:
+                        encrypted_data_str = encrypted_data_bytes.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # Si le fichier n'est pas en UTF-8 (ancienne version binaire direct)
+                        # On ne peut pas le lire facilement avec le nouveau système
+                        raise ValueError("Format de fichier obsolète ou corrompu.")
+                        
+                    decrypted_str = self.crypto.decrypt(encrypted_data_str)
+                    
+                    if decrypted_str == "[Erreur Déchiffrement]":
+                        raise ValueError("Clé de déchiffrement incorrecte.")
+                    
+                    if not decrypted_str or decrypted_str.strip() == "":
+                        raise ValueError("Données déchiffrées vides.")
+                        
                     loaded_data = json.loads(decrypted_str)
                     # Merge to ensure new keys exist
                     for k, v in loaded_data.items():
                         self.data[k] = v
-            except: pass
+            except json.JSONDecodeError:
+                print("Erreur : Le fichier déchiffré n'est pas un JSON valide.")
+                raise ValueError("Fichier de données corrompu.")
+            except Exception as e:
+                print(f"Erreur chargement: {e}")
+                raise e
 
     def save_local_data(self):
         try:
             # Convert sets to lists for JSON
             data_to_save = self.data.copy()
-            if isinstance(data_to_save["sent_requests"], set):
+            if "sent_requests" in data_to_save and isinstance(data_to_save["sent_requests"], set):
                 data_to_save["sent_requests"] = list(data_to_save["sent_requests"])
                 
             json_str = json.dumps(data_to_save)
-            encrypted_data = self.crypto.encrypt(json_str)
+            encrypted_str = self.crypto.encrypt(json_str)
+            # On écrit en binaire donc on doit encoder la string base64 en bytes
             with open(self.local_data_file, "wb") as f:
-                f.write(encrypted_data)
+                f.write(encrypted_str.encode('utf-8'))
         except Exception as e:
             print(f"Erreur sauvegarde: {e}")
+            raise e
 
     def add_pending_request(self, friend_code: str):
         if friend_code not in self.data["friends"]:

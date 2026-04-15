@@ -48,8 +48,9 @@ class EMPCrypto:
         return data + bytes([pad_len] * pad_len)
 
     def _unpad(self, data: bytes) -> bytes:
+        if not data: return b""
         pad_len = data[-1]
-        if pad_len > 32: return data # Safety
+        if pad_len <= 0 or pad_len > 32: return data # Safety
         return data[:-pad_len]
 
     def encrypt(self, plaintext: str) -> str:
@@ -69,7 +70,11 @@ class EMPCrypto:
     def decrypt(self, b64_ciphertext: str) -> str:
         """Déchiffre depuis une chaîne Base64."""
         try:
-            ciphertext = base64.b64decode(b64_ciphertext)
+            if isinstance(b64_ciphertext, bytes):
+                ciphertext = base64.b64decode(b64_ciphertext)
+            else:
+                ciphertext = base64.b64decode(b64_ciphertext.encode('utf-8'))
+                
             decrypted = b""
             prev_block = self.key
             def rotate_right(v, n): return ((v >> n) | (v << (8 - n))) & 0xFF
@@ -82,8 +87,11 @@ class EMPCrypto:
                 plain_block = bytes(a ^ b for a, b in zip(inv_block, prev_block))
                 decrypted += plain_block
                 prev_block = block
-            return self._unpad(decrypted).decode('utf-8')
-        except: return "[Erreur Déchiffrement]"
+            
+            unpadded = self._unpad(decrypted)
+            return unpadded.decode('utf-8')
+        except Exception:
+            return "[Erreur Déchiffrement]"
 
     @staticmethod
     def derive_shared_key(code1: str, code2: str):
